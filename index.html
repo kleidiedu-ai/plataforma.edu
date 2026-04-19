@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Plataforma GEST — Login e Painel</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon/fonts/remixicon.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Poppins',sans-serif;background:#f5f7fa;height:100vh;overflow:hidden;display:flex;align-items:center;justify-content:center;}
+
+.login-box{background:white;padding:40px;border-radius:12px;box-shadow:0 0 15px rgba(0,0,0,0.1);width:90%;max-width:380px;text-align:center;z-index:10;}
+.login-box h2{margin-bottom:20px;color:#2a3f54;}
+.login-box input{width:100%;padding:12px;margin:10px 0;border:1px solid #ccc;border-radius:8px;font-size:16px;}
+.login-box button{background:#2a3f54;color:white;border:none;padding:12px 20px;border-radius:8px;font-size:16px;cursor:pointer;width:100%;transition:background 0.3s;}
+.login-box button:hover{background:#1a2735;}
+.login-box a{color:#2a3f54;text-decoration:none;display:block;margin-top:10px;font-size:14px;}
+#error-msg{color:red;font-size:14px;display:none;margin-top:10px;}
+.loading{display:none;margin:10px auto;width:30px;height:30px;border:4px solid #ddd;border-top:4px solid #2a3f54;border-radius:50%;animation:spin 1s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.dashboard{display:none;width:100%;height:100vh;overflow:hidden;flex-direction:row;}
+.sidebar{width:260px;background:#2a3f54;color:white;display:flex;flex-direction:column;transition:all 0.3s;z-index:1000;}
+.sidebar.collapsed{width:70px;}
+
+.sidebar .logo{display:flex;align-items:center;gap:10px;padding:15px;background:#1f2e3d;font-weight:600;font-size:18px;overflow:hidden;}
+.sidebar .logo img{width:30px;height:30px;min-width:30px;}
+
+.sidebar ul{list-style:none;flex-grow:1;margin-top:20px;}
+.sidebar ul li{padding:14px 20px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:background 0.2s;white-space:nowrap;}
+.sidebar ul li:hover,.sidebar ul li.active{background:#1a2735;}
+.sidebar ul li i{font-size:20px;min-width:24px;}
+
+.main{flex-grow:1;display:flex;flex-direction:column;width:100%;transition:all 0.3s;}
+.header{height:60px;background:white;box-shadow:0 1px 5px rgba(0,0,0,0.1);display:flex;align-items:center;justify-content:space-between;padding:0 20px;z-index:10;}
+.header h1{font-size:18px;color:#2a3f54;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.toggle-btn{cursor:pointer;font-size:24px;color:#2a3f54;margin-right:15px;}
+.logout-btn{background:#2a3f54;color:white;padding:8px 14px;border-radius:6px;border:none;cursor:pointer;}
+
+.content{flex-grow:1;overflow-y:auto;background:#f5f7fa;padding:20px;}
+iframe{width:100%;height:90vh;border:none;border-radius:8px;box-shadow:0 0 10px rgba(0,0,0,0.1);}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:20px;}
+.card{background:white;border-radius:12px;padding:20px;box-shadow:0 2px 10px rgba(0,0,0,0.1);text-align:center;cursor:pointer;transition:transform 0.2s;}
+.card:hover{transform:translateY(-4px);box-shadow:0 4px 14px rgba(0,0,0,0.15);}
+.card i{font-size:38px;color:#2a3f54;margin-bottom:10px;}
+
+.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);justify-content:center;align-items:center;z-index:2000;}
+.modal-content{background:white;padding:25px;border-radius:12px;width:90%;max-width:350px;text-align:center;}
+.whatsapp-btn{background:#25D366;color:white;padding:12px;border-radius:8px;text-decoration:none;display:inline-block;width:100%;margin-top:10px;}
+
+@media(max-width:768px){
+  .sidebar{position:fixed;left:-260px;height:100%;}
+  .sidebar.show{left:0;}
+  .sidebar.collapsed{left:-260px;}
+  .header h1{font-size:14px;}
+}
+
+#overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:999;}
+</style>
+</head>
+<body>
+
+<div id="overlay"></div>
+
+<div class="login-box" id="login-screen">
+  <img src="https://i.ibb.co/JW5wgT3s/plataformagest.png" alt="plataformagest" width="200">
+  <h2>Plataforma GEST</h2>
+  <input type="text" id="usuario" placeholder="Usuário">
+  <input type="password" id="senha" placeholder="Senha de acesso">
+  <button onclick="login()">Entrar</button>
+  <div class="loading" id="loading"></div>
+  <p id="error-msg">Usuário ou senha inválidos.</p>
+  <a href="#" onclick="abrirPix()">Criar conta (Pix)</a>
+</div>
+
+<div id="pixModal" class="modal">
+  <div class="modal-content">
+    <h3>Pagamento via Pix</h3>
+    <input type="text" id="nome_pix" placeholder="Nome completo" style="width:100%;padding:10px;margin:10px 0;border-radius:8px;border:1px solid #ccc;">
+    <input type="text" id="cpf_pix" placeholder="CPF" style="width:100%;padding:10px;margin:10px 0;border-radius:8px;border:1px solid #ccc;">
+    <p>💰 Valor: <strong>R$25,00/mês</strong></p>
+    <p>📎 Chave Pix (CPF):<br><strong>96702656220</strong></p>
+    <button onclick="mostrarWhats()" style="background:#25D366;color:white;border:none;padding:12px;width:100%;border-radius:8px;cursor:pointer;margin-top:10px;">Já paguei</button>
+    <div id="senhaBox" style="display:none;margin-top:10px;">
+      <a id="whatsLink" target="_blank" class="whatsapp-btn">📲 Enviar comprovante</a>
+    </div>
+    <button onclick="fecharPix()" style="margin-top:15px;background:none;border:none;color:#666;cursor:pointer;text-decoration:underline;">Fechar</button>
+  </div>
+</div>
+
+<div class="dashboard" id="dashboard">
+  <div class="sidebar" id="sidebar">
+    <div class="logo">
+      <img src="https://cdn-icons-png.flaticon.com/512/2098/2098298.png" alt="Logo">
+      <span>Plataforma GEST</span>
+    </div>
+    <ul>
+      <li class="active" data-page="inicio"><i class="ri-home-5-line"></i><span>Início</span></li>
+      <li data-page="planejamento"><i class="ri-calendar-check-line"></i><span>Planejamento</span></li>
+      <li data-page="autoria"><i class="ri-pencil-ruler-2-line"></i><span>Autoria</span></li>
+      <li data-page="gestao"><i class="ri-briefcase-4-line"></i><span>Gestão de Sala</span></li>
+      <li data-page="dados"><i class="ri-pie-chart-line"></i><span>Gestão de Dados</span></li>
+      <li onclick="abrirLink('https://chat.whatsapp.com/INWzt9qAmzyDg2JnJkwPcu')">
+        <i class="ri-whatsapp-line" style="color:#25D366;"></i><span>Grupo WhatsApp</span>
+      </li>
+      <li onclick="abrirLink('https://www.youtube.com/@educava4279')">
+        <i class="ri-youtube-line" style="color:#ff0000;"></i><span>YouTube Educava</span>
+      </li>
+    </ul>
+  </div>
+
+  <div class="main">
+    <div class="header">
+      <div style="display:flex;align-items:center;">
+        <span class="toggle-btn" id="toggleBtn"><i class="ri-menu-line"></i></span>
+        <h1>Ferramentas Docentes</h1>
+      </div>
+      <button class="logout-btn" onclick="logout()">Sair</button>
+    </div>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+
+<script>
+
+/* ================================================================
+   ▼▼▼  CONFIGURAÇÃO DE LOGIN — ALTERE AQUI  ▼▼▼
+   Cole abaixo a URL do seu Google Apps Script que valida o login.
+   Para gerar uma nova URL:
+     1. Abra sua planilha de usuários no Google Sheets
+     2. Extensões → Apps Script → cole o script de validação
+     3. Implantar → Nova implantação → Aplicativo da Web
+     4. Copie a URL gerada e substitua o valor abaixo
+   ================================================================ */
+const LOGIN_API_URL = "https://script.google.com/macros/s/AKfycbyFHn-IS0v7VYOylCGdo0b0bBi9ez5r546Sb8CGg97c_WTCvRHlXXCTpy9Z2iL4Dz6OtA/exec";
+/* ================================================================
+   ▲▲▲  FIM DA CONFIGURAÇÃO DE LOGIN  ▲▲▲
+   ================================================================ */
+
+
+/* ========= LOGIN PRINCIPAL ========= */
+function login() {
+  const userVal = document.getElementById("usuario").value;
+  const passVal = document.getElementById("senha").value;
+  if (!userVal || !passVal) return;
+  error(false); loading(true);
+  fetch(LOGIN_API_URL, {
+    method: "POST",
+    body: JSON.stringify({ usuario: userVal, senha: passVal })
+  })
+  .then(r => r.json())
+  .then(r => {
+    if (r.status === "ok") {
+      sessionStorage.setItem("gest_logado", "1");
+      showDashboard();
+    } else {
+      error(true);
+    }
+  })
+  .catch(() => error(true))
+  .finally(() => loading(false));
+}
+
+function loading(v) { document.getElementById("loading").style.display = v ? "block" : "none"; }
+function error(v)   { document.getElementById("error-msg").style.display = v ? "block" : "none"; }
+
+function showDashboard() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'flex';
+  abrirAbaPorURL();
+  if (!new URLSearchParams(window.location.search).get("page")) { pages.inicio(); }
+}
+
+function logout() { sessionStorage.removeItem("gest_logado"); location.reload(); }
+if (sessionStorage.getItem("gest_logado") === "1") { showDashboard(); }
+
+function abrirAbaPorURL() {
+  const params = new URLSearchParams(window.location.search);
+  const page = params.get("page");
+  if (page && pages[page]) {
+    document.querySelector('.sidebar ul li.active')?.classList.remove('active');
+    const item = document.querySelector(`[data-page="${page}"]`);
+    if (item) item.classList.add('active');
+    pages[page]();
+  }
+}
+
+/* ========= UI CONTROLS ========= */
+const sidebar   = document.getElementById("sidebar");
+const toggleBtn = document.getElementById("toggleBtn");
+const overlay   = document.getElementById("overlay");
+const content   = document.getElementById("content");
+const items     = document.querySelectorAll(".sidebar ul li");
+
+toggleBtn.onclick = () => {
+  if (window.innerWidth <= 768) {
+    sidebar.classList.toggle("show");
+    overlay.style.display = sidebar.classList.contains("show") ? "block" : "none";
+  } else {
+    sidebar.classList.toggle("collapsed");
+  }
+};
+
+overlay.onclick = () => { sidebar.classList.remove("show"); overlay.style.display = "none"; };
+
+/* ========= CONTENT LOADING ========= */
+function showCards(cards) {
+  let html = `<div class="cards">`;
+  cards.forEach(c => {
+    html += `
+    <div class="card" onclick="openIframe('${c.link}','${c.titulo}')">
+      <i class='${c.icone}'></i>
+      <h3>${c.titulo}</h3>
+      <p>${c.desc}</p>
+    </div>`;
+  });
+  html += `</div>`;
+  content.innerHTML = html;
+}
+
+function openIframe(link, titulo) {
+  if (link.startsWith("external:")) {
+    window.open(link.replace("external:", ""), "_blank");
+    return;
+  }
+  content.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+      <button onclick="pages.inicio()" style="cursor:pointer;padding:5px 12px;border-radius:6px;border:1px solid #ccc;background:#fff;">⬅ Início</button>
+      <h2 style="font-size:1.2rem;color:#2a3f54;">${titulo}</h2>
+      <span></span>
+    </div>
+    <iframe src="${link}" id="main-iframe"></iframe>
+  `;
+}
+
+/* ========= PAGES CONFIG ========= */
+const pages = {
+  inicio: () => {
+    content.innerHTML = `
+    <div style="max-width:800px;margin:auto;text-align:center;">
+      <h2 style="color:#2a3f54;margin-bottom:20px;">Bem-vindo à Plataforma GEST</h2>
+      <div style="position:relative;padding-top:56.25%;border-radius:12px;overflow:hidden;background:#000;">
+        <iframe src="https://www.youtube.com/embed/videoseries?list=PLEZ4f5dxPi5g6F0TNDQJP8Ln3XYBICPXG"
+                style="position:absolute;top:0;left:0;width:100%;height:100%;"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowfullscreen></iframe>
+      </div>
+    </div>`;
+  },
+  planejamento: () => showCards([
+    {titulo:"Calendário Escolar",   desc:"Eventos e formações",           icone:"ri-calendar-check-line", link:"https://profkleidivaldo.github.io/calendariogestao/"},
+    {titulo:"Planejador Semanal",   desc:"Organize aulas pela BNCC.",     icone:"ri-calendar-check-line", link:"https://script.google.com/macros/s/AKfycbw0mrJ-v6QFUIriIDYEIMsITjgagyWrN2t_ivCf_7bWqwvIAWERkXFQNywNDUHAOBOXIQ/exec"},
+    {titulo:"Planejador Form",      desc:"Planejamentos via formulário.",  icone:"ri-file-edit-line",      link:"external:https://sites.google.com/view/planejaontestegratis/planejamentos"},
+    {titulo:"Painel descritores",   desc:"Planeje com dados.",            icone:"ri-file-edit-line",      link:"https://profkleidivaldo.github.io/paineldescritores/"},
+    {titulo:"Arquivo",              desc:"Pasta de arquivos Google Drive.",icone:"ri-folder-6-line",      link:"external:https://drive.google.com/drive/folders/1w722ikZDF2h8Bw9Q3VpQXJ9jj81pUXsg"}
+  ]),
+  autoria: () => showCards([
+    {titulo:"Construtor de Aulas",      desc:"Monte páginas com textos e vídeos.", icone:"ri-book-open-line",       link:"https://profkleidivaldo.github.io/construtor/"},
+    {titulo:"Construtor de Aulas 2.0",  desc:"Monte páginas com textos e vídeos.", icone:"ri-book-open-line",       link:"https://profkleidivaldo.github.io/construtor3.0/"},
+    {titulo:"GestIA",                   desc:"Assistente IA Pedagógica",           icone:"ri-speak-ai-line",        link:"https://profkleidivaldo.github.io/gestia/"},
+    {titulo:"Gerador slidesIA",         desc:"Assistente IA",                      icone:"ri-speak-ai-line",        link:"https://script.google.com/macros/s/AKfycbzZ3_VzXRn7ChdBy7tvBmDI5cwPITyxG0BbZROyvwDTBcoOXGJgfOtCsCmDILunyW_e/exec"},
+    {titulo:"Criador de Questionários", desc:"Quizzes automáticos.",               icone:"ri-question-answer-line", link:"https://profkleidivaldo.github.io/geradorquestionarios/"},
+    {titulo:"Construtor de Avaliações", desc:"Monte provas personalizadas.",       icone:"ri-file-list-3-line",     link:"https://profkleidivaldo.github.io/construtoravaliacoes/"},
+    {titulo:"Gerador de Avaliação",     desc:"Monte provas digitais.",             icone:"ri-file-list-3-line",     link:"https://profkleidivaldo.github.io/criadorquestionarios/"},
+    {titulo:"Construtor de Quizes",     desc:"Monte quizes personalizados.",       icone:"ri-game-line",            link:"https://profkleidivaldo.github.io/criadordequiz/"},
+    {titulo:"Mural Digital",            desc:"Crie murais colaborativos.",         icone:"ri-layout-grid-line",     link:"https://profkleidivaldo.github.io/mural/"},
+    {titulo:"Mapa Mental",              desc:"Crie mapas mentais",                 icone:"ri-layout-grid-line",     link:"https://profkleidivaldo.github.io/mapamental/"}
+  ]),
+  gestao: () => showCards([
+    {titulo:"EduAVA",               desc:"Ambiente virtual de Aprendizagem",          icone:"ri-edit-box-line",      link:"https://profkleidivaldo.github.io/eduava/index.html"},
+    {titulo:"PEI DIGITAL",          desc:"Sistema de Acompanhamento Individualizado", icone:"ri-edit-box-line",      link:"https://script.google.com/macros/s/AKfycbyAKorkH5-nMsq0PVQeTY8ErVN7yHZmz181llYi5lgKvhy-kP2PLITFC4THaIq_tsC9cg/exec"},
+    {titulo:"Espelho 2º Ano",       desc:"Notas da turma.",                           icone:"ri-table-line",         link:"external:https://docs.google.com/spreadsheets/d/1A2SEdy6W4-cZfO0AIOtgso5LFMLITdiRFivyGr4JwuE/"},
+    {titulo:"Espelho 3º Ano",       desc:"Notas da turma.",                           icone:"ri-table-line",         link:"external:https://docs.google.com/spreadsheets/d/1Ok3L284rzj3Iwf6Q2z2YAn9qa8Xa_pkI8Fzr5LJP0L0/"},
+    {titulo:"Espelho de notas 4°ANO", desc:"Lance as notas aqui",                    icone:"ri-file-edit-line",     link:"external:https://docs.google.com/spreadsheets/d/18L83bD2h5J0cuATSnI2YcCMXc86Jm0W-ZdmzzfFkFu0/edit?usp=sharing"},
+    {titulo:"Espelho de notas 5°ANO", desc:"Lance as notas aqui",                    icone:"ri-file-edit-line",     link:"external:https://docs.google.com/spreadsheets/d/10CNByUcNnAOMq8-hutTxR6u_tX9D0rQYOsFTUKpyyyM/edit?usp=sharing"},
+    {titulo:"Medidor de Fluência",  desc:"Avalie fluência leitora.",                  icone:"ri-sound-module-line",  link:"https://profkleidivaldo.github.io/medidorfluencia/"},
+    {titulo:"Visita Pedagógica",    desc:"Formulário de visitas Supervisão",          icone:"ri-sound-module-line",  link:"https://profkleidivaldo.github.io/bancovisitassuperv/"}
+  ]),
+  dados: () => {
+    openIframe("https://profkleidivaldo.github.io/logindiretor/", "Gestão de Dados");
+  }
+};
+
+items.forEach(li => {
+  li.addEventListener('click', () => {
+    const page = li.getAttribute('data-page');
+    if (page) {
+      document.querySelector('.sidebar ul li.active')?.classList.remove('active');
+      li.classList.add('active');
+      pages[page]();
+      if (window.innerWidth <= 768) { sidebar.classList.remove('show'); overlay.style.display = "none"; }
+    }
+  });
+});
+
+/* ========= PIX ========= */
+function abrirPix() { document.getElementById('pixModal').style.display = 'flex'; }
+function fecharPix() { document.getElementById('pixModal').style.display = 'none'; }
+function mostrarWhats() {
+  const nome = document.getElementById('nome_pix').value;
+  const cpf  = document.getElementById('cpf_pix').value;
+  if (!nome || !cpf) { alert("Preencha nome e CPF"); return; }
+  const msg = encodeURIComponent(`Olá! Sou ${nome} (CPF ${cpf}). Realizei o pagamento do Pix da Plataforma GEST e envio aqui o comprovante.`);
+  document.getElementById('whatsLink').href = `https://wa.me/5569981120161?text=${msg}`;
+  document.getElementById('senhaBox').style.display = "block";
+}
+function abrirLink(url) { window.open(url, '_blank'); }
+</script>
+
+<!-- ============================================================
+     CHATBOT "X DA QUESTÃO"
+     ============================================================ -->
+<style>
+#gem-assistant-container * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif; }
+#gem-trigger { position:fixed; bottom:20px; right:20px; width:65px; height:65px; background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); border-radius:50%; cursor:pointer; box-shadow:0 4px 15px rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center; font-size:52px; transition:transform 0.3s ease; z-index:999999; }
+#gem-trigger:hover { transform:scale(1.1); }
+#gem-chat-window { position:fixed; bottom:95px; right:20px; width:350px; max-width:90vw; height:500px; max-height:70vh; background:#ffffff; border-radius:15px; box-shadow:0 10px 30px rgba(0,0,0,0.2); display:none; flex-direction:column; z-index:999998; overflow:hidden; border:1px solid #e0e0e0; }
+#gem-chat-window.active { display:flex; }
+.gem-header { background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); color:white; padding:15px; display:flex; justify-content:space-between; align-items:center; }
+.gem-header h3 { font-size:16px; font-weight:600; color:white !important; }
+.gem-close { background:none; border:none; color:white; font-size:22px; cursor:pointer; opacity:0.8; }
+#gem-messages-area { flex:1; overflow-y:auto; padding:15px; background:#f8f9fa; display:flex; flex-direction:column; gap:12px; }
+.gem-msg { padding:10px 14px; border-radius:12px; max-width:85%; font-size:14px; line-height:1.5; word-wrap:break-word; }
+.gem-msg.user { background:#667eea; color:white; align-self:flex-end; border-bottom-right-radius:2px; }
+.gem-msg.assistant { background:white; color:#333; align-self:flex-start; border-bottom-left-radius:2px; border:1px solid #eee; }
+.gem-input-box { padding:12px; display:flex; gap:8px; background:white; border-top:1px solid #eee; }
+#gem-input { flex:1; padding:10px 15px; border:1px solid #ddd; border-radius:20px; outline:none; font-size:14px; }
+#gem-input:focus { border-color:#667eea; }
+#gem-send { background:#764ba2; color:white; border:none; padding:8px 15px; border-radius:20px; cursor:pointer; font-weight:bold; }
+#gem-typing { display:none; padding:8px 15px; font-size:12px; color:#888; }
+#gem-typing.active { display:block; }
+</style>
+
+<div id="gem-assistant-container">
+  <div id="gem-trigger">🤖</div>
+  <div id="gem-chat-window">
+    <div class="gem-header">
+      <h3>X da questão</h3>
+      <button class="gem-close" onclick="document.getElementById('gem-chat-window').classList.remove('active')">×</button>
+    </div>
+    <div id="gem-messages-area">
+      <div class="gem-msg assistant">Olá! Como posso ajudar você hoje?</div>
+    </div>
+    <div id="gem-typing">Digitando...</div>
+    <div class="gem-input-box">
+      <input type="text" id="gem-input" placeholder="Escreva aqui..." autocomplete="off">
+      <button id="gem-send">Enviar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+
+  /* ================================================================
+     ▼▼▼  CONFIGURAÇÃO DO CHATBOT — ALTERE AQUI  ▼▼▼
+     Cole abaixo a URL do Apps Script que faz o proxy para a IA.
+     ================================================================ */
+  const CHATBOT_PROXY_URL = 'https://script.google.com/macros/s/AKfycbyG6S7kQ7ynCUmhi5hY1o6-7x8XcdKFBx4D1_EK7HlX1gQY2puNAZ5TT-4TUCv6XzbL/exec';
+  /* ================================================================
+     ▲▲▲  FIM DA CONFIGURAÇÃO DO CHATBOT  ▲▲▲
+     ================================================================ */
+
+  const trigger    = document.getElementById('gem-trigger');
+  const windowChat = document.getElementById('gem-chat-window');
+  const input      = document.getElementById('gem-input');
+  const btn        = document.getElementById('gem-send');
+  const area       = document.getElementById('gem-messages-area');
+  const typing     = document.getElementById('gem-typing');
+
+  let history = [];
+
+  trigger.onclick = () => {
+    windowChat.classList.toggle('active');
+    if (windowChat.classList.contains('active')) input.focus();
+  };
+
+  const handleSend = async () => {
+    const text = input.value.trim();
+    if (!text) return;
+    addMsg(text, 'user');
+    input.value = '';
+    typing.classList.add('active');
+    area.scrollTop = area.scrollHeight;
+    history.push({ role: 'user', content: text });
+    try {
+      const resp = await fetch(CHATBOT_PROXY_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ history: history.slice(-6) })
+      });
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error);
+      addMsg(data.reply, 'assistant');
+      history.push({ role: 'assistant', content: data.reply });
+    } catch (err) {
+      addMsg('Erro ao conectar ao servidor. Tente novamente.', 'assistant');
+      console.error(err);
+    } finally {
+      typing.classList.remove('active');
+      area.scrollTop = area.scrollHeight;
+    }
+  };
+
+  btn.onclick = handleSend;
+  input.onkeydown = (e) => { if (e.key === 'Enter') handleSend(); };
+
+  function addMsg(text, side) {
+    const d = document.createElement('div');
+    d.className = `gem-msg ${side}`;
+    d.innerText = text;
+    area.appendChild(d);
+    area.scrollTop = area.scrollHeight;
+  }
+})();
+</script>
+
+</body>
+</html>
